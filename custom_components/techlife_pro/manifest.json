@@ -1,0 +1,10 @@
+{
+  "domain": "techlife_pro",
+  "name": "Integration for techlife pro lights",
+  "codeowners": [],
+  "dependencies": [],
+  "documentation": "",
+  "iot_class": "local_polling",
+  "requirements": ["paho-mqtt==1.6.1"],
+  "version": "0.1.0"
+}
