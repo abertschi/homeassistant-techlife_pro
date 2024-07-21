@@ -1,32 +1,12 @@
-import hashlib
 import logging
-import math
-import time
-from base64 import b64decode, b64encode
-from collections import OrderedDict
-from threading import Event
-import threading
-import sched
-import random
-import ssl
-import requests
-import stringcase
-import os
-import re
-import homeassistant.util.color as color_util
-import binascii
-import traceback
-import asyncio
 import paho.mqtt.client as mqtt
 import time
 import binascii
 import traceback
 
-from paho.mqtt.client import Client
-from paho.mqtt import publish as MQTTPublish
-from paho.mqtt import subscribe as MQTTSubscribe
+log = logging.getLogger("techlife_pro.bulb")
+log_mqtt = logging.getLogger("techlife_pro.mqtt")
 
-_LOGGER = logging.getLogger(__name__)
 MIN_COLOR_VAL = 16
 
 
@@ -55,6 +35,11 @@ class TechLifeBulp():
         self.state_white_brightness = 255
         self.state_type: str = self.STATE_TYPE_RGB
 
+        log.info(f"creating bulb with url={broker_url},"
+                 f" user={broker_username},"
+                 f" mac={bulb_mac},"
+                 f" name={bulb_name}")
+
     def is_color_mode(self):
         return self.state_type == self.STATE_TYPE_RGB
 
@@ -74,57 +59,70 @@ class TechLifeBulp():
             return self.white(val)
 
     def connect(self):
-        self.mqtt_client = mqtt.Client("clientid%s" % self.bulb_mac)
+        id = f"clientid{self.bulb_mac}"
+        self.mqtt_client = mqtt.Client(id)
         self.mqtt_client.on_message = self._on_message
         self.mqtt_client.on_connect = self._on_connect
         self.mqtt_client.on_log = self._on_log
-        print("Connecting to broker")
 
-        self.mqtt_client.username_pw_set(self.broker_username, password=self.broker_password)
+        log.info(f"Connecting to broker {self.broker_url}"
+                 f" with client id {id}")
+
+        self.mqtt_client.username_pw_set(self.broker_username,
+                                         password=self.broker_password)
 
         self.mqtt_client.connect(self.broker_url)
         self.mqtt_client.loop_start()
-
         return True
 
     def _on_connect(self, client, obj, flags, rc):
         if rc == 0:
-            self.state_is_available = True
+            log_mqtt.debug("[mqtt:on_connect] connected ok")
+            log.debug(f"mqtt connected {self.bulb_name}/{self.bulb_mac}")
 
-            print("[ON_CONNECT] Connected OK")
-            client.subscribe("dev_pub_%s" % self.bulb_mac)
-            client.subscribe("dev_sub_%s" % self.bulb_mac)
+            self.state_is_available = True
+            dev_pub = f"dev_pub_{self.bulb_mac}"
+            dev_sub = f"dev_sub_{self.bulb_mac}"
+
+            log_mqtt.debug(f"mqtt subscribing to {dev_pub}")
+            log_mqtt.debug(f"mqtt subscribing to {dev_sub}")
+
+            client.subscribe(dev_pub)
+            client.subscribe(dev_sub)
         else:
-            print("[ON_CONNECT] Bad connection Returned code=%s", rc)
+            log_mqtt.error(f"[on_connect] Bad connection. code={rc}")
 
     def _on_disconnect(self, client, userdata, rc):
-        print("[ON_DISCONNECT] disconnecting reason  " + str(rc))
-        self.state_is_available = False
+        log_mqtt.info(f"[mqtt:on_disconnect] disconnecting reason {rc},"
+                      f" client: {self.bulb_name}")
 
+        self.state_is_available = False
         client.connected_flag = False
         client.disconnect_flag = True
 
     def _on_log(self, client, userdata, level, buff):
-        print("[ON_LOG]: %s" % buff)
+        log_mqtt.debug(f"[mqtt:on_log]: {buff}")
 
     def _on_message(self, client, userdata, message):
         try:
             msg = binascii.hexlify(message.payload)
             topic = message.topic
-            print("[ON_MESSAGE] Command received in topic %s: %s" % (topic, msg))
+            log_mqtt.debug(f"[mqtt:on_message] Command received in topic {topic}: {msg}")
 
             # TODO: Do we need this?
-            if ((topic == "dev_sub_%s" % self.bulb_mac) and message.payload[0] == 0xfc and message.payload[1] == 0xf0):
+            if ((topic == "dev_sub_%s" % self.bulb_mac) \
+                    and message.payload[0] == 0xfc \
+                    and message.payload[1] == 0xf0):
                 response = bytearray.fromhex("110000000000003f0d000000014100ffffff1524f14d22")
                 client.publish("dev_pub_%s" % self.bulb_mac, response)
 
-
         except Exception as e:
+            log_mqtt.exception("error while receiving message", e)
             traceback.print_exc()
 
     def _send(self, cmd):
         command = self._calc_checksum(cmd)
-        sub_topic = "dev_sub_%s" % self.bulb_mac
+        sub_topic = f"dev_sub_{self.bulb_mac}"
         self.mqtt_client.publish(sub_topic, command)
 
     def color(self, red, green, blue, alpha):
@@ -151,6 +149,10 @@ class TechLifeBulp():
         g = int(green / 255 * alpha)
         b = int(blue / 255 * alpha)
 
+        log.debug(f"{self.bulb_name} changing color:"
+                  f" in:{red},{green},{blue},{_alpha}"
+                  f" adj:{r},{g},{b},{alpha}")
+
         self.state_rgb = (red, green, blue)
         self.state_color_brightness = _alpha
         self.state_type = self.STATE_TYPE_RGB
@@ -175,7 +177,8 @@ class TechLifeBulp():
 
         alp = max(12, alpha)
 
-        print('r: {} g: {} b: {} brn:{}'.format(r, g, b, alp))
+        log.debug(f"{self.bulb_name} color: "
+                  f" in:{r},{g},{b},{alpha}")
 
         payload[1] = r & 0xFF
         payload[2] = r >> 8
@@ -184,8 +187,6 @@ class TechLifeBulp():
         payload[5] = b & 0xFF
         payload[6] = b >> 8
         payload[11] = alp & 0xFF
-        print("color paylodd: %s" % payload)
-
         return payload
 
     def white(self, brightness_256):
@@ -196,7 +197,8 @@ class TechLifeBulp():
         else:
             value = int(brightness_256 / 256 * 10_000)
 
-        print(brightness_256)
+        log.debug(f"{self.bulb_name} white: "
+                  f" in:{brightness_256}, adj:{value}")
 
         self.state_white_brightness = brightness_256
         self.state_type = self.STATE_TYPE_WHITE
@@ -232,7 +234,7 @@ class TechLifeBulp():
 def _test():
     import logging
     logging.basicConfig()
-    logging.getLogger().setLevel(logging.DEBUG)
+    logging.getLogger().setLevel(logging.INFO)
 
     broker_url = '192.168.1.129'
     mac = '7c:b9:4c:57:6e:1f'
