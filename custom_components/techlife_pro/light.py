@@ -14,8 +14,8 @@ from homeassistant.components.light \
             COLOR_MODE_HS,
             COLOR_MODE_RGB,
             COLOR_MODE_RGBW,
-            COLOR_MODE_WHITE,
-            SUPPORT_BRIGHTNESS,
+            COLOR_MODE_RGBWW, COLOR_MODE_WHITE,
+            COLOR_MODE_XY, SUPPORT_BRIGHTNESS,
             ATTR_BRIGHTNESS,
             ATTR_HS_COLOR,
             ATTR_RGB_COLOR,
@@ -94,6 +94,7 @@ class TechLifeLightEntity(LightEntity):
 
     @property
     def supported_color_modes(self):
+        # return [COLOR_MODE_HS, COLOR_MODE_WHITE, COLOR_MODE_COLOR_TEMP]
         return [COLOR_MODE_HS, COLOR_MODE_WHITE]
 
     @property
@@ -122,7 +123,7 @@ class TechLifeLightEntity(LightEntity):
         if self._light.state_type == self._light.STATE_TYPE_RGB:
             mode = 'hs'
         elif self._light.state_type == self._light.STATE_TYPE_WHITE:
-            mode = 'brightness'
+            mode = 'white'
         else:
             mode = 'onoff'
         log.debug(f"{self._name}: color_mode={mode}")
