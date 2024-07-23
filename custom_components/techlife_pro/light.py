@@ -94,7 +94,6 @@ class TechLifeLightEntity(LightEntity):
 
     @property
     def supported_color_modes(self):
-        # return [COLOR_MODE_HS, COLOR_MODE_WHITE, COLOR_MODE_COLOR_TEMP]
         return [COLOR_MODE_HS, COLOR_MODE_WHITE]
 
     @property

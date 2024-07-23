@@ -7,8 +7,6 @@ import traceback
 log = logging.getLogger("techlife_pro.bulb")
 log_mqtt = logging.getLogger("techlife_pro.mqtt")
 
-MIN_COLOR_VAL = 16
-
 
 class TechLifeBulp():
     STATE_TYPE_RGB = "rgb"
@@ -125,23 +123,32 @@ class TechLifeBulp():
         sub_topic = f"dev_sub_{self.bulb_mac}"
         self.mqtt_client.publish(sub_topic, command)
 
-    def color(self, red, green, blue, alpha):
+    def color(self, red, green, blue, alpha, low_light_mode=True):
         """
-        rgb alpha in [0, 255]
+        Set color of light, rgb and alpha in [0,255]
+        low_light_mode: adjustment of alpha to be more fine granular for low light
         """
-
-        #
-        # some playing around
-        #
+        red = min(max(0, red), 255)
+        green = min(max(0, green), 255)
+        blue = min(max(0, blue), 255)
+        alpha = min(max(0, alpha), 255)
         _alpha = alpha
-        if alpha == 0:
-            pass
-        elif alpha < 128:
-            alpha = alpha + 12
-        elif alpha < 164:
-            alpha = int(alpha * 12)
-        elif alpha < 192:
-            alpha = int(alpha * 30)
+
+        if low_light_mode:
+            #
+            # manual fine tuning of alpha to allow for more fine granular
+            # dimmed light
+            #
+            if alpha == 0:
+                pass
+            elif alpha < 128:
+                alpha = alpha + 12
+            elif alpha < 164:
+                alpha = int(alpha * 12)
+            elif alpha < 192:
+                alpha = int(alpha * 30)
+            else:
+                alpha = int(alpha / 255 * 10_000)
         else:
             alpha = int(alpha / 255 * 10_000)
 
@@ -168,6 +175,7 @@ class TechLifeBulp():
         #
         # bulb visual hacks
         #
+        MIN_COLOR_VAL = 16
         if r > 0:
             r = max(MIN_COLOR_VAL, r)
         if g > 0:
