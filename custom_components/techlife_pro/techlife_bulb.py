@@ -107,7 +107,6 @@ class TechLifeBulp():
             topic = message.topic
             log_mqtt.debug(f"[mqtt:on_message] Command received in topic {topic}: {msg}")
 
-            # TODO: Do we need this?
             if ((topic == "dev_sub_%s" % self.bulb_mac) \
                     and message.payload[0] == 0xfc \
                     and message.payload[1] == 0xf0):
