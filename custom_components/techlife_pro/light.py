@@ -183,7 +183,8 @@ class TechLifeLightEntity(LightEntity):
         if white_mode:
             self._light.white(brightness)
         else:
-            self._light.color(rgb[0], rgb[1], rgb[2], brightness)
+            self._light.color(rgb[0], rgb[1], rgb[2], brightness,
+                low_light_mode = False)
 
     def update(self):
         pass
