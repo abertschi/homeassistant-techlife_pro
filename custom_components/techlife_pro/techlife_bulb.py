@@ -58,7 +58,7 @@ class TechLifeBulp():
 
     def connect(self):
         id = f"clientid{self.bulb_mac}"
-        self.mqtt_client = mqtt.Client(id)
+        self.mqtt_client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1, id)
         self.mqtt_client.on_message = self._on_message
         self.mqtt_client.on_connect = self._on_connect
         self.mqtt_client.on_log = self._on_log
