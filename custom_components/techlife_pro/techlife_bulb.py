@@ -196,10 +196,10 @@ class TechLifeBulp():
         payload[11] = alp & 0xFF
         return payload
 
-    def white(self, brightness_256):
+    def white(self, brightness_256, low_light_mode = True):
         assert 0 <= brightness_256 <= 255
 
-        if brightness_256 < 128:
+        if low_light_mode and brightness_256 < 128:
             value = max(12, brightness_256 * 4)
         else:
             value = int(brightness_256 / 256 * 10_000)

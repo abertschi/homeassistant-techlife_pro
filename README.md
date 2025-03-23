@@ -20,4 +20,3 @@ https://www.aliexpress.com/item/4000184312813.html?spm=a2g0o.order_list.order_li
 
 - https://community.home-assistant.io/t/integrating-techlife-pro-light-bulbs-without-opening-or-soldering/178423/15
 - https://community.openhab.org/t/hacking-techlife-pro-bulbs/85940/5
-- https://github.com/thorin8k/techlife_bulb
